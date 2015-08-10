@@ -1,8 +1,5 @@
-import com.google.gson.internal.Primitives;
-
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.lang.reflect.TypeVariable;
 import java.util.*;
 
 /**
@@ -21,24 +18,39 @@ public class EntityTransformer {
     }
 
     public static Object transform(final Map<Object, String> visitedEntities, Object entity) {
-        if (entity == null || isPrimitive(entity))
+        if (entity == null || EntityTransformerUtil.isPrimitive( entity ))
             return entity;
-        if (isVisited(visitedEntities, entity))
+        if (isVisited(visitedEntities, entity) && !isPrimitiveArray(entity))
             return generateRefObject(visitedEntities, entity);
+        if (isDate( entity ))
+            return transformDate(visitedEntities, entity);
         if (isCollectionMapOrArray(entity))
             return transformCollectionOrMap(visitedEntities, entity);
-
-        return transformObject(visitedEntities, entity);
+        return transformObject( visitedEntities, entity );
     }
 
-    private static boolean isPrimitive(Object entity) {
-        return (Primitives.isWrapperType(entity.getClass())
-                || Primitives.isPrimitive(entity.getClass())
-                || entity instanceof String);
+//    private static boolean isPrimitive(Object entity) {
+//        return (Primitives.isWrapperType(entity.getClass())
+//                || Primitives.isPrimitive(entity.getClass())
+//                || entity instanceof String);
+//    }
+
+    private static boolean isDate(Object date) {
+        return date instanceof Date;
     }
+
+//    private static boolean isPrimitiveClass(Class clazz) {
+//        return (Primitives.isWrapperType(clazz)
+//                || Primitives.isPrimitive(clazz)
+//                || (String.class).equals( clazz ));
+//    }
 
     private static boolean isCollectionMapOrArray(Object entity) {
         return isList(entity) || isSet(entity) || isMap(entity) || isArray(entity);
+    }
+
+    private static boolean isPrimitiveArray(Object entity) {
+        return isArray(entity) && EntityTransformerUtil.isPrimitiveClass( entity.getClass().getComponentType() );
     }
 
     private static boolean isArray(Object entity) {
@@ -59,16 +71,18 @@ public class EntityTransformer {
 
     private static Object transformCollectionOrMap(final Map<Object, String> visitedEntities, final Object entity) {
         Map<String,Object> collectionEntity = new HashMap<>();
-        addOID(visitedEntities, entity, collectionEntity);
+        addOID( visitedEntities, entity, collectionEntity );
         Object transformedCollectionOrMap = null;
         collectionEntity.put(CLASS_KEY, WRAPPER_CLASS);
-        if (isList(entity))
-            transformedCollectionOrMap = transformList(visitedEntities, (List) entity);
-        if (isSet(entity))
-            transformedCollectionOrMap = transformSet(visitedEntities, (Set) entity);
-        if (isMap(entity))
-            transformedCollectionOrMap = transformMap(visitedEntities, (Map) entity);
-        if (isArray(entity))
+        if (isList( entity ))
+            transformedCollectionOrMap = transformList( visitedEntities, (List) entity );
+        else if (isSet( entity ))
+            transformedCollectionOrMap = transformSet( visitedEntities, (Set) entity );
+        else if (isMap( entity ))
+            transformedCollectionOrMap = transformMap( visitedEntities, (Map) entity );
+        else if (isPrimitiveArray( entity ))
+            return entity;
+        else if (isArray( entity ))
             transformedCollectionOrMap = transformArray(visitedEntities, entity);
         collectionEntity.put(DATA_KEY, transformedCollectionOrMap);
         return collectionEntity;
@@ -106,9 +120,18 @@ public class EntityTransformer {
         Map transformedMap = new HashMap(mapEntity.size());
         for (Object entryKey : mapEntity.entrySet()) {
             Object entryValue = mapEntity.get(entryKey);
-            transformedMap.put(transform(visitedEntities, entryKey), transform(visitedEntities, entryValue));
+            transformedMap.put( transform( visitedEntities, entryKey ), transform( visitedEntities, entryValue ) );
         }
         return transformedMap;
+    }
+
+    private static Object transformDate(final Map<Object, String> visitedEntities, Object entity) {
+        Map<String, Object> transformedObject = new HashMap<>();
+        addOID(visitedEntities, entity, transformedObject);
+        transformedObject.put(CLASS_KEY, entity.getClass());
+        Date date = (Date) entity;
+        transformedObject.put( "date", date.getTime() );
+        return transformedObject;
     }
 
     private static Object transformObject(final Map<Object, String> visitedEntities, Object entity) {

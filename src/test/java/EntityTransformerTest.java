@@ -1,12 +1,10 @@
-import com.google.gson.Gson;
 import org.junit.Test;
 import testdata.Person;
 import testdata.TestDataGenerator;
 
 import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 /**
  * Created by koxa on 28.07.2015.
@@ -30,13 +28,13 @@ public class EntityTransformerTest {
 
     @Test
     public void testTransformDouble() {
-        Object obj = EntityTransformer.transform(42.2);
+        Object obj = EntityTransformer.transform(42.42);
         assertEquals(Double.class, obj.getClass());
     }
 
     @Test
     public void testTransformFloat() {
-        Object obj = EntityTransformer.transform(42.2f);
+        Object obj = EntityTransformer.transform(42.42f);
         assertEquals(Float.class, obj.getClass());
     }
 
@@ -76,13 +74,13 @@ public class EntityTransformerTest {
     public void testTransformDate() {
         Date date = new Date();
         Object obj = EntityTransformer.transform(date);
-        System.out.println(obj);
+        System.out.println( obj );
     }
 
     @Test
     public void testTransformNull() {
         Object obj = EntityTransformer.transform(null);
-        assertNull(obj);
+        assertNull( obj );
     }
 
     @Test
@@ -90,22 +88,49 @@ public class EntityTransformerTest {
         Person person = TestDataGenerator.genPerson(0);
         person.setRelative(person);
         Object transformed = EntityTransformer.transform(person);
-        System.out.println(transformed);
+        System.out.println( transformed );
     }
 
     @Test
     public void testTransformListOfList() {
         List<List<?>> list = new ArrayList<List<?>>();
-        list.add(list);
+        list.add( list );
         Object transformed = EntityTransformer.transform(list);
-        System.out.println(transformed);
+        assertNotNull( transformed );
+        assertTrue( transformed instanceof Map );
+        Map parameters = (Map) transformed;
+        assertTrue( parameters.get( ":data" ) instanceof List );
+        List transformedList = (List) parameters.get( ":data" );
+        String refid = (String) ((Map)(transformedList.get( 0 ))).get( ":refid" );
+        String oid = (String) parameters.get( ":oid" );
+        assertEquals( oid, refid );
     }
 
     @Test
     public void testTransformSetOfSet() {
         Set<Set<?>> set = new HashSet<Set<?>>();
-        set.add(set);
+        set.add( set );
         Object transformed = EntityTransformer.transform(set);
+        assertNotNull( transformed );
+        assertTrue( transformed instanceof Map );
+        Map parameters = (Map) transformed;
+        assertTrue( parameters.get( ":data" ) instanceof Set );
+        Set transformedSet = (Set) parameters.get( ":data" );
+        assertTrue( transformedSet.iterator().hasNext() );
+        String refid = (String) ((Map) transformedSet.iterator().next()).get( ":refid" );
+        String oid = (String) parameters.get( ":oid" );
+        assertEquals( oid, refid );
+    }
+
+    @Test
+    public void testTransformArrayOfArrays() {
+        int[][] array = new int[4][3];
+        int[] subArray = new int[] {4,2};
+        array[0] = subArray;
+        array[1] = array[0];
+        array[2] = new int[] {1,2,3};
+
+        Object transformed = EntityTransformer.transform(array);
         System.out.println(transformed);
     }
 }
